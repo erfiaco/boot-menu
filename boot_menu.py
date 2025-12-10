@@ -6,11 +6,17 @@ from luma.oled.device import ssd1306
 from PIL import Image, ImageDraw, ImageFont
 from gpiozero import Button
 import os
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
+
+from gpiozero import Device
+from gpiozero.pins.rpigpio import RPiGPIOFactory
+
+# Limpia GPIO al inicio
+Device.pin_factory = RPiGPIOFactory()
 
 #solo usa RPi.GPIO para limpiar, de resto va de gpiozero
-GPIO.setmode(GPIO.BCM)
-GPIO.cleanup()
+#GPIO.setmode(GPIO.BCM)
+#GPIO.cleanup()
 
 #CONFIGURA TU OLED AQUI
 serial = i2c(port=1, address=0x3C)
@@ -18,7 +24,7 @@ device = ssd1306(serial, width=128, height=64)  # cambia segun tu modelo
 #
 
 # Botones del menu (elige 3 GPIOs libres, ej: 16, 20, 21)
-btn_up    = Button(17, pull_up=True, bounce_time=0.03)
+#btn_up    = Button(17, pull_up=True, bounce_time=0.03)
 btn_down  = Button(23, pull_up=True, bounce_time=0.03)
 btn_ok    = Button(22, pull_up=True, bounce_time=0.03, hold_time=1)
 
@@ -31,10 +37,10 @@ def draw_menu():
             prefix = "> " if i == selected else "  "
             draw.text((10, 20 + i*25), prefix + item, fill="white")
 
-def navigate_up():
-    global selected
-    selected = (selected - 1) % len(menu_items)
-    draw_menu()
+#def navigate_up():
+#    global selected
+#    selected = (selected - 1) % len(menu_items)
+#    draw_menu()
 
 def navigate_down():
     global selected
@@ -55,7 +61,7 @@ def select():
         subprocess.run(["sudo", "shutdown", "-h", "now"])
 
 # Eventos
-btn_up.when_pressed = navigate_up
+#btn_up.when_pressed = navigate_up
 btn_down.when_pressed = navigate_down
 btn_ok.when_pressed = select
 
