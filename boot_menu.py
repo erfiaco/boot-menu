@@ -3,31 +3,25 @@ import time
 import subprocess
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
-from PIL import Image, ImageDraw, ImageFont
-from gpiozero import Button, Device
+from PIL import Image, ImageDraw
+import RPi.GPIO as GPIO
 import os
-#import RPi.GPIO as GPIO
 
+# Configuración GPIO
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
 
-#from gpiozero.pins.rpigpio import RPiGPIOFactory
-from gpiozero.pins.pigpio import PiGPIOFactory
+# Pines de botones
+PIN_DOWN = 23
+PIN_OK = 22
 
-# Limpia GPIO al inicio
-Device.pin_factory = PiGPIOFactory()
+# Configura botones con pull-up
+GPIO.setup(PIN_DOWN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(PIN_OK, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-#solo usa RPi.GPIO para limpiar, de resto va de gpiozero
-#GPIO.setmode(GPIO.BCM)
-#GPIO.cleanup()
-
-#CONFIGURA TU OLED AQUI
+# OLED
 serial = i2c(port=1, address=0x3C)
-device = ssd1306(serial, width=128, height=64)  # cambia segun tu modelo
-#
-
-# Botones del menu (elige 3 GPIOs libres, ej: 16, 20, 21)
-#btn_up    = Button(17, pull_up=True, bounce_time=0.03)
-btn_down  = Button(23, pull_up=True, bounce_time=0.03)
-btn_ok    = Button(22, pull_up=True, bounce_time=0.03, hold_time=1)
+device = ssd1306(serial, width=128, height=64)
 
 menu_items = ["Looper", "Shutdown"]
 selected = 0
@@ -41,11 +35,6 @@ def draw_menu():
         draw.text((10, 20 + i*20), prefix + item, fill=255)
     
     device.display(img)
-    
-#def navigate_up():
-#    global selected
-#    selected = (selected - 1) % len(menu_items)
-#    draw_menu()
 
 def navigate_down():
     global selected
@@ -55,25 +44,61 @@ def navigate_down():
 def select():
     if menu_items[selected] == "Looper":
         print("Arrancando Looper...")
-        env = os.environ.copy()
-        env["PYTHONPATH"] = "/home/Javo/Proyects/Looper"
+        # Limpia pantalla
+        img = Image.new("1", (128, 64))
+        device.display(img)
+        
+        # Limpia GPIO
+        GPIO.cleanup()
+        
+        # Lanza looper
         subprocess.Popen(
-        	["/home/Javo/Proyects/Looper/looper_env/bin/python", "-m", "software.main"], cwd="/home/Javo/Proyects/Looper"
-        	)
-        time.sleep(2)  # da tiempo a que arranque y limpie la pantalla si quieres
+            ["/home/Javo/Proyects/Looper/looper_env/bin/python", "-m", "software.main"],
+            cwd="/home/Javo/Proyects/Looper"
+        )
+        
+        # Termina boot_menu
+        exit(0)
+        
     elif menu_items[selected] == "Shutdown":
         print("Apagando sistema...")
+        
+        # Limpia pantalla ANTES de apagar
+        img = Image.new("1", (128, 64))
+        device.display(img)
+        
+        GPIO.cleanup()
         subprocess.run(["sudo", "shutdown", "-h", "now"])
 
-# Eventos
-#btn_up.when_pressed = navigate_up
-btn_down.when_pressed = navigate_down
-btn_ok.when_pressed = select
-
-# Primera dibujada
+# Dibuja menú inicial
 draw_menu()
-print("Menú de arranque activo. Usa ↑ ↓ OK")
+print("Menú de arranque activo. Usa ↓ OK")
 
-# Espera eterna
-while True:
-    time.sleep(1)
+# Loop principal
+try:
+    last_down = True
+    last_ok = True
+    
+    while True:
+        # Lee botones (LOW = presionado porque usamos pull-up)
+        current_down = GPIO.input(PIN_DOWN)
+        current_ok = GPIO.input(PIN_OK)
+        
+        # Detecta flanco descendente (presión)
+        if last_down and not current_down:
+            time.sleep(0.05)  # Debounce
+            navigate_down()
+        
+        if last_ok and not current_ok:
+            time.sleep(0.05)  # Debounce
+            select()
+        
+        last_down = current_down
+        last_ok = current_ok
+        
+        time.sleep(0.01)  # Pequeña pausa
+        
+except KeyboardInterrupt:
+    print("\nSaliendo...")
+finally:
+    GPIO.cleanup()
