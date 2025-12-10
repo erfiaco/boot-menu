@@ -33,11 +33,15 @@ menu_items = ["Looper", "Shutdown"]
 selected = 0
 
 def draw_menu():
-    with canvas(device) as draw:
-        for i, item in enumerate(menu_items):
-            prefix = "> " if i == selected else "  "
-            draw.text((10, 20 + i*25), prefix + item, fill="white")
-
+    img = Image.new("1", (128, 64))
+    draw = ImageDraw.Draw(img)
+    
+    for i, item in enumerate(menu_items):
+        prefix = "> " if i == selected else "  "
+        draw.text((10, 20 + i*20), prefix + item, fill=255)
+    
+    device.display(img)
+    
 #def navigate_up():
 #    global selected
 #    selected = (selected - 1) % len(menu_items)
@@ -50,12 +54,12 @@ def navigate_down():
 
 def select():
     if menu_items[selected] == "Looper":
-        
         print("Arrancando Looper...")
         env = os.environ.copy()
         env["PYTHONPATH"] = "/home/Javo/Proyects/Looper"
-        subprocess.Popen(["/home/Javo/Proyects/Looper/looper_env/bin/python", 
-                          "-m", "software.main"])
+        subprocess.Popen(
+        	["/home/Javo/Proyects/Looper/looper_env/bin/python", "-m", "software.main"], cwd="/home/Javo/Proyects/Looper"
+        	)
         time.sleep(2)  # da tiempo a que arranque y limpie la pantalla si quieres
     elif menu_items[selected] == "Shutdown":
         print("Apagando sistema...")
