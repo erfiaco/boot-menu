@@ -6,6 +6,11 @@ from luma.oled.device import ssd1306
 from PIL import Image, ImageDraw, ImageFont
 from gpiozero import Button
 import os
+import RPi.GPIO as GPIO
+
+#solo usa RPi.GPIO para limpiar, de resto va de gpiozero
+GPIO.setmode(GPIO.BCM)
+GPIO.cleanup()
 
 #CONFIGURA TU OLED AQUI
 serial = i2c(port=1, address=0x3C)
