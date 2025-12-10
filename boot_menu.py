@@ -2,8 +2,8 @@
 import time
 import subprocess
 from luma.core.interface.serial import i2c
-from luma.core.render import canvas
-from luma.oled.device import ssd1306   # o sh1106, ssd1306 segun tu OLED
+from luma.oled.device import ssd1306
+from PIL import Image, ImageDraw, ImageFont
 from gpiozero import Button
 import os
 
