@@ -54,11 +54,17 @@ def select():
         # Lanza looper
         subprocess.Popen(
             ["/home/Javo/Proyects/Looper/looper_env/bin/python", "-m", "software.main"],
-            cwd="/home/Javo/Proyects/Looper"
+            cwd="/home/Javo/Proyects/Looper",
+            stdin=subprocess.DEVNULL,   # ← Añade esto
+            stdout=subprocess.DEVNULL,  # ← Añade esto
+            stderr=subprocess.DEVNULL,  # ← Añade esto
+            start_new_session=True      # ← Añade esto (CLAVE)
+
         )
         
         # Termina boot_menu
-        exit(0)
+        import os
+        os._exit(0)
         
     elif menu_items[selected] == "Shutdown":
         print("Apagando sistema...")
