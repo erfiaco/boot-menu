@@ -53,18 +53,41 @@ def select():
         
         # Lanza looper
         subprocess.Popen(
-            ["/home/Javo/Proyects/Looper/looper_env/bin/python", "-m", "software.main"],
+            ["/home/Javo/Proyects/Looper/looper_env/bin/python", "-u", "-m", "software.main"],
             cwd="/home/Javo/Proyects/Looper",
-            stdin=subprocess.DEVNULL,   # ← Añade esto
-            stdout=subprocess.DEVNULL,  # ← Añade esto
-            stderr=subprocess.DEVNULL,  # ← Añade esto
+            stdin=subprocess.DEVNULL,
+#            stdout=subprocess.DEVNULL,
+#            stderr=subprocess.DEVNULL,
+            stdout=open('/tmp/looper.log', 'w', buffering=1),   # ← Añade
+            stderr=open('/tmp/looper_errors.log', 'w', buffering=1),  # ← Añade
             start_new_session=True      # ← Añade esto (CLAVE)
+            
 
         )
         
         # Termina boot_menu
         import os
         os._exit(0)
+
+    elif menu_items[selected] == "Practice_player":
+        print("Practice player...")
+        # Limpia pantalla
+        img = Image.new("1", (128, 64))
+        device.display(img)
+        
+        # Limpia GPIO
+        GPIO.cleanup()        
+
+        # Lanza practice player
+        subprocess.Popen(
+            ["/home/Javo/Proyects/practice_player/reproductor_env/bin/python", "-u", "-m", "main"],
+            cwd="/home/Javo/Proyects/practice_player",
+            stdin=subprocess.DEVNULL,
+#            stdout=subprocess.DEVNULL,
+#            stderr=subprocess.DEVNULL,
+            stdout=open('/tmp/practice_player.log', 'w', buffering=1),   # ← Añade
+            stderr=open('/tmp/practice_player_errors.log', 'w', buffering=1),  # ← Añade
+            start_new_session=True      # ← Añade esto (CLAVE)
         
     elif menu_items[selected] == "Shutdown":
         print("Apagando sistema...")
@@ -75,6 +98,8 @@ def select():
         
         GPIO.cleanup()
         subprocess.run(["sudo", "shutdown", "-h", "now"])
+    
+    
 
 # Dibuja menú inicial
 draw_menu()
