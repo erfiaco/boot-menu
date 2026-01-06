@@ -23,7 +23,7 @@ GPIO.setup(PIN_OK, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 serial = i2c(port=1, address=0x3C)
 device = ssd1306(serial, width=128, height=64)
 
-menu_items = ["Looper", "Shutdown"]
+menu_items = ["Looper", "Practice Player", "Shutdown"]
 selected = 0
 
 def draw_menu():
@@ -80,7 +80,7 @@ def select():
 
         # Lanza practice player
         subprocess.Popen(
-            ["/home/Javo/Proyects/practice_player/reproductor_env/bin/python", "-u", "-m", "main"],
+            ["/home/Javo/Proyects/practice_player/reproductor_env/bin/python", "-u", "main.py"],
             cwd="/home/Javo/Proyects/practice_player",
             stdin=subprocess.DEVNULL,
 #            stdout=subprocess.DEVNULL,
