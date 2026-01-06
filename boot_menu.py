@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
+"""
+Boot Menu mejorado con:
+- Scroll automático para más de 3 opciones
+- Opción Exit para cerrar limpiamente
+- Mejor visualización
+"""
+
 import time
 import subprocess
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import RPi.GPIO as GPIO
 import os
 
@@ -23,27 +30,117 @@ GPIO.setup(PIN_OK, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 serial = i2c(port=1, address=0x3C)
 device = ssd1306(serial, width=128, height=64)
 
-menu_items = ["Looper", "Practice Player", "Shutdown"]
+# Fuente
+try:
+    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14)
+    font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
+except:
+    font = ImageFont.load_default()
+    font_small = ImageFont.load_default()
+
+# Items del menú
+menu_items = [
+    "Looper",
+    "Practice Player",
+    "Shutdown",
+    "Exit"  # ← Nueva opción
+]
+
 selected = 0
+scroll_offset = 0  # Para scroll
+MAX_VISIBLE = 3    # Máximo de items visibles a la vez
 
 def draw_menu():
+    """Dibuja el menú con scroll si hay más de 3 opciones"""
+    global scroll_offset
+    
     img = Image.new("1", (128, 64))
     draw = ImageDraw.Draw(img)
     
-    for i, item in enumerate(menu_items):
-        prefix = "> " if i == selected else "  "
-        draw.text((10, 20 + i*20), prefix + item, fill=255)
+    # Título
+    draw.text((5, 2), "BOOT MENU", font=font_small, fill=255)
+    draw.line([(0, 15), (128, 15)], fill=255)
+    
+    # Ajustar scroll para mantener el item seleccionado visible
+    if selected < scroll_offset:
+        scroll_offset = selected
+    elif selected >= scroll_offset + MAX_VISIBLE:
+        scroll_offset = selected - MAX_VISIBLE + 1
+    
+    # Dibujar items visibles
+    for i in range(MAX_VISIBLE):
+        item_index = scroll_offset + i
+        
+        if item_index >= len(menu_items):
+            break
+        
+        item = menu_items[item_index]
+        y_pos = 20 + i * 15
+        
+        # Marcar seleccionado
+        if item_index == selected:
+            # Rectángulo de selección
+            draw.rectangle([(2, y_pos - 2), (126, y_pos + 13)], outline=255, fill=0)
+            draw.text((10, y_pos), f"> {item}", font=font_small, fill=255)
+        else:
+            draw.text((10, y_pos), f"  {item}", font=font_small, fill=255)
+    
+    # Indicadores de scroll
+    if scroll_offset > 0:
+        # Flecha arriba
+        draw.polygon([(120, 18), (124, 22), (116, 22)], fill=255)
+    
+    if scroll_offset + MAX_VISIBLE < len(menu_items):
+        # Flecha abajo
+        draw.polygon([(120, 62), (124, 58), (116, 58)], fill=255)
+    
+    # Mostrar contador
+    draw.text((2, 58), f"{selected + 1}/{len(menu_items)}", font=font_small, fill=255)
     
     device.display(img)
 
 def navigate_down():
+    """Navega hacia abajo (circular)"""
     global selected
     selected = (selected + 1) % len(menu_items)
     draw_menu()
 
+def cleanup_and_exit():
+    """Limpia recursos y sale limpiamente"""
+    print("\nLimpiando recursos...")
+    
+    # Limpiar pantalla
+    img = Image.new("1", (128, 64))
+    draw = ImageDraw.Draw(img)
+    draw.text((30, 25), "Goodbye!", font=font, fill=255)
+    device.display(img)
+    time.sleep(1)
+    
+    # Limpiar OLED completamente
+    img = Image.new("1", (128, 64))
+    device.display(img)
+    
+    # Limpiar GPIO
+    GPIO.cleanup()
+    
+    print("Boot menu cerrado limpiamente")
+    os._exit(0)
+
 def select():
-    if menu_items[selected] == "Looper":
+    """Ejecuta la acción del item seleccionado"""
+    selection = menu_items[selected]
+    
+    if selection == "Looper":
         print("Arrancando Looper...")
+        
+        # Mensaje en pantalla
+        img = Image.new("1", (128, 64))
+        draw = ImageDraw.Draw(img)
+        draw.text((20, 25), "Starting", font=font, fill=255)
+        draw.text((25, 40), "Looper...", font=font_small, fill=255)
+        device.display(img)
+        time.sleep(0.5)
+        
         # Limpia pantalla
         img = Image.new("1", (128, 64))
         device.display(img)
@@ -56,54 +153,71 @@ def select():
             ["/home/Javo/Proyects/Looper/looper_env/bin/python", "-u", "-m", "software.main"],
             cwd="/home/Javo/Proyects/Looper",
             stdin=subprocess.DEVNULL,
-#            stdout=subprocess.DEVNULL,
-#            stderr=subprocess.DEVNULL,
-            stdout=open('/tmp/looper.log', 'w', buffering=1),   # ← Añade
-            stderr=open('/tmp/looper_errors.log', 'w', buffering=1),  # ← Añade
-            start_new_session=True      # ← Añade esto (CLAVE)
-            
-
+            stdout=open('/tmp/looper.log', 'w', buffering=1),
+            stderr=open('/tmp/looper_errors.log', 'w', buffering=1),
+            start_new_session=True
         )
         
         # Termina boot_menu
-        import os
         os._exit(0)
-
-    elif menu_items[selected] == "Practice_player":
-        print("Practice player...")
+    
+    elif selection == "Practice Player":
+        print("Arrancando Practice Player...")
+        
+        # Mensaje en pantalla
+        img = Image.new("1", (128, 64))
+        draw = ImageDraw.Draw(img)
+        draw.text((15, 25), "Starting", font=font, fill=255)
+        draw.text((10, 40), "Practice...", font=font_small, fill=255)
+        device.display(img)
+        time.sleep(0.5)
+        
         # Limpia pantalla
         img = Image.new("1", (128, 64))
         device.display(img)
         
         # Limpia GPIO
-        GPIO.cleanup()        
-
+        GPIO.cleanup()
+        
         # Lanza practice player
         subprocess.Popen(
-            ["/home/Javo/Proyects/practice_player/reproductor_env/bin/python", "-u", "main.py"],
+            ["/home/Javo/Proyects/practice_player/practice_env/bin/python", "-u", "main.py"],
             cwd="/home/Javo/Proyects/practice_player",
             stdin=subprocess.DEVNULL,
-#            stdout=subprocess.DEVNULL,
-#            stderr=subprocess.DEVNULL,
-            stdout=open('/tmp/practice_player.log', 'w', buffering=1),   # ← Añade
-            stderr=open('/tmp/practice_player_errors.log', 'w', buffering=1),  # ← Añade
-            start_new_session=True      # ← Añade esto (CLAVE)
+            stdout=open('/tmp/practice_player.log', 'w', buffering=1),
+            stderr=open('/tmp/practice_player_errors.log', 'w', buffering=1),
+            start_new_session=True
+        )
         
-    elif menu_items[selected] == "Shutdown":
+        # Termina boot_menu
+        os._exit(0)
+    
+    elif selection == "Shutdown":
         print("Apagando sistema...")
         
-        # Limpia pantalla ANTES de apagar
+        # Mensaje en pantalla
+        img = Image.new("1", (128, 64))
+        draw = ImageDraw.Draw(img)
+        draw.text((15, 25), "Shutting", font=font, fill=255)
+        draw.text((25, 40), "down...", font=font_small, fill=255)
+        device.display(img)
+        time.sleep(1)
+        
+        # Limpia pantalla
         img = Image.new("1", (128, 64))
         device.display(img)
         
         GPIO.cleanup()
         subprocess.run(["sudo", "shutdown", "-h", "now"])
     
-    
+    elif selection == "Exit":
+        cleanup_and_exit()
 
 # Dibuja menú inicial
+print("=== Boot Menu Iniciado ===")
 draw_menu()
-print("Menú de arranque activo. Usa ↓ OK")
+print(f"Items disponibles: {', '.join(menu_items)}")
+print("Usa botones: ↓ (GPIO23) y OK (GPIO22)")
 
 # Loop principal
 try:
@@ -116,20 +230,32 @@ try:
         current_ok = GPIO.input(PIN_OK)
         
         # Detecta flanco descendente (presión)
-        if last_down and not current_down:
+        if last_down and not current_down:  # Botón DOWN presionado
             time.sleep(0.05)  # Debounce
-            navigate_down()
+            if not GPIO.input(PIN_DOWN):  # Confirma que sigue presionado
+                navigate_down()
         
-        if last_ok and not current_ok:
+        if last_ok and not current_ok:  # Botón OK presionado
             time.sleep(0.05)  # Debounce
-            select()
+            if not GPIO.input(PIN_OK):  # Confirma que sigue presionado
+                select()
         
         last_down = current_down
         last_ok = current_ok
         
-        time.sleep(0.01)  # Pequeña pausa
+        time.sleep(0.01)  # Pequeña pausa para no saturar CPU
         
 except KeyboardInterrupt:
-    print("\nSaliendo...")
+    print("\nCtrl+C detectado")
+    cleanup_and_exit()
+    
+except Exception as e:
+    print(f"\nError en boot_menu: {e}")
+    cleanup_and_exit()
+    
 finally:
-    GPIO.cleanup()
+    # Seguridad adicional
+    try:
+        GPIO.cleanup()
+    except:
+        pass
