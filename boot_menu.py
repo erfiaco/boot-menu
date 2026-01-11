@@ -8,6 +8,7 @@ Boot Menu mejorado con:
 
 import time
 import subprocess
+import sys  # ⭐ Añadido para sys.exit()
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
 from PIL import Image, ImageDraw, ImageFont
@@ -42,8 +43,9 @@ except:
 menu_items = [
     "Looper",
     "Practice Player",
+    "Bluetooth Rec",
     "Shutdown",
-    "Exit"  # ← Nueva opción
+    "Exit"
 ]
 
 selected = 0
@@ -120,11 +122,17 @@ def cleanup_and_exit():
     img = Image.new("1", (128, 64))
     device.display(img)
     
-    # Limpiar GPIO
-    GPIO.cleanup()
+    # ⭐ NO hacer GPIO.cleanup() - corrompe I2C y AudioInjector
+    # Solo limpiar los pines específicos que usamos
+    try:
+        GPIO.setup(PIN_DOWN, GPIO.IN)  # Resetear a input
+        GPIO.setup(PIN_OK, GPIO.IN)    # Resetear a input
+    except:
+        pass
     
     print("Boot menu cerrado limpiamente")
-    os._exit(0)
+    # ⭐ Usar exit() normal en vez de os._exit(0)
+    sys.exit(0)
 
 def select():
     """Ejecuta la acción del item seleccionado"""
@@ -160,7 +168,7 @@ def select():
         
         # Termina boot_menu
         os._exit(0)
-    
+        
     elif selection == "Practice Player":
         print("Arrancando Practice Player...")
         
@@ -186,6 +194,38 @@ def select():
             stdin=subprocess.DEVNULL,
             stdout=open('/tmp/practice_player.log', 'w', buffering=1),
             stderr=open('/tmp/practice_player_errors.log', 'w', buffering=1),
+            start_new_session=True
+        )
+        
+        # Termina boot_menu
+        os._exit(0)
+
+    
+    elif selection == "Bluetooth Rec":
+        print("Arrancando Bluetooth Recorder...")
+        
+        # Mensaje en pantalla
+        img = Image.new("1", (128, 64))
+        draw = ImageDraw.Draw(img)
+        draw.text((15, 25), "Starting", font=font, fill=255)
+        draw.text((10, 40), "BT Rec...", font=font_small, fill=255)
+        device.display(img)
+        time.sleep(0.5)
+        
+        # Limpia pantalla
+        img = Image.new("1", (128, 64))
+        device.display(img)
+        
+        # Limpia GPIO
+        GPIO.cleanup()
+        
+        # Lanza practice player
+        subprocess.Popen(
+            ["/home/Javo/Proyects/bluetooth_recorder/bt_recorder_env/bin/python", "-u", "main.py"],
+            cwd="/home/Javo/Proyects/bluetooth_recorder",
+            stdin=subprocess.DEVNULL,
+            stdout=open('/tmp/bluetooth_recorder.log', 'w', buffering=1),
+            stderr=open('/tmp/bluetooth_recorder_errors.log', 'w', buffering=1),
             start_new_session=True
         )
         
@@ -254,8 +294,6 @@ except Exception as e:
     cleanup_and_exit()
     
 finally:
-    # Seguridad adicional
-    try:
-        GPIO.cleanup()
-    except:
-        pass
+    # ⭐ NO hacer GPIO.cleanup() - puede corromper I2C
+    # El sistema operativo limpiará los pines al terminar el proceso
+    pass
