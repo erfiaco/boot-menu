@@ -20,11 +20,13 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 
 # Pines de botones
-PIN_DOWN = 23
-PIN_OK = 22
+PIN_DOWN = 22
+PIN_UP = 9
+PIN_OK = 25
 
 # Configura botones con pull-up
 GPIO.setup(PIN_DOWN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(PIN_UP, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(PIN_OK, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 # OLED
@@ -107,6 +109,12 @@ def navigate_down():
     selected = (selected + 1) % len(menu_items)
     draw_menu()
 
+def navigate_up():
+    """Navega hacia arriba (circular)"""
+    global selected
+    selected = (selected - 1) % len(menu_items)
+    draw_menu()
+    
 def cleanup_and_exit():
     """Limpia recursos y sale limpiamente"""
     print("\nLimpiando recursos...")
@@ -126,6 +134,7 @@ def cleanup_and_exit():
     # Solo limpiar los pines específicos que usamos
     try:
         GPIO.setup(PIN_DOWN, GPIO.IN)  # Resetear a input
+        GPIO.setup(PIN_UP, GPIO.IN)
         GPIO.setup(PIN_OK, GPIO.IN)    # Resetear a input
     except:
         pass
@@ -260,13 +269,16 @@ print(f"Items disponibles: {', '.join(menu_items)}")
 print("Usa botones: ↓ (GPIO23) y OK (GPIO22)")
 
 # Loop principal
+
 try:
     last_down = True
+    last_up = True  # ⭐ Ya está declarado
     last_ok = True
     
     while True:
         # Lee botones (LOW = presionado porque usamos pull-up)
         current_down = GPIO.input(PIN_DOWN)
+        current_up = GPIO.input(PIN_UP)  # ⭐ Ya está declarado
         current_ok = GPIO.input(PIN_OK)
         
         # Detecta flanco descendente (presión)
@@ -275,14 +287,20 @@ try:
             if not GPIO.input(PIN_DOWN):  # Confirma que sigue presionado
                 navigate_down()
         
+        # ⭐ AÑADE ESTO AQUÍ:
+        if last_up and not current_up:  # Botón UP presionado
+            time.sleep(0.05)  # Debounce
+            if not GPIO.input(PIN_UP):  # Confirma que sigue presionado
+                navigate_up()
+        
         if last_ok and not current_ok:  # Botón OK presionado
             time.sleep(0.05)  # Debounce
             if not GPIO.input(PIN_OK):  # Confirma que sigue presionado
                 select()
         
         last_down = current_down
-        last_ok = current_ok
-        
+        last_up = current_up  # ⭐ AÑADE ESTO TAMBIÉN
+        last_ok = current_ok        
         time.sleep(0.01)  # Pequeña pausa para no saturar CPU
         
 except KeyboardInterrupt:
